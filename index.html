@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ELITE GYM APP v9</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Noto+Sans+TC', sans-serif;
+            background-color: #09090b;
+            color: #f4f4f5;
+            -webkit-tap-highlight-color: transparent;
+            padding-bottom: 80px;
+        }
+
+        .sport-font { font-family: 'Oswald', sans-serif; text-transform: uppercase; font-style: italic; }
+        .neon-text { color: #a3e635; }
+        .neon-bg { background-color: #a3e635; }
+        
+        .glass-card {
+            background: rgba(24, 24, 27, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(63, 63, 70, 0.4);
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        input, select { background: #18181b !important; border: 1px solid #3f3f46 !important; color: white; appearance: none; }
+        input:focus, select:focus { border-color: #a3e635 !important; outline: none; }
+
+        .tab-content { display: none; animation: fadeIn 0.3s ease-in-out; }
+        .tab-content.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .calendar-day { aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 8px; font-size: 12px; font-weight: bold; position: relative; }
+        .calendar-day.active { background-color: #18181b; border: 1px solid #3f3f46; cursor: pointer; }
+        .calendar-day.has-data::after { content: ''; position: absolute; bottom: 4px; width: 6px; height: 6px; background-color: #a3e635; border-radius: 50%; box-shadow: 0 0 5px #a3e635; }
+        .calendar-day.selected { border-color: #a3e635; background-color: rgba(163, 230, 53, 0.1); }
+        .calendar-day.empty { visibility: hidden; }
+
+        .tag-btn { transition: all 0.2s; }
+        .tag-btn.selected { background-color: #a3e635; color: black; border-color: #a3e635; font-weight: bold; }
+        .nav-item { transition: color 0.2s; }
+        .nav-item.active { color: #a3e635; }
+
+        /* 確保彈出視窗可以順利滾動 */
+        .modal-scrollable {
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+        }
+    </style>
+</head>
+<body class="min-h-screen relative">
+
+    <div id="loadingScreen" class="fixed inset-0 z-[100] bg-[#09090b] flex flex-col items-center justify-center">
+        <div class="w-8 h-8 border-4 border-zinc-800 border-t-lime-400 rounded-full animate-spin mb-4"></div>
+        <p class="text-xs font-bold sport-font tracking-widest text-zinc-500">SYNCING V9...</p>
+    </div>
+
+    <!-- Top Header -->
+    <header class="fixed top-0 w-full bg-[#09090b]/90 backdrop-blur-md z-40 border-b border-zinc-800 px-4 py-3 flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl font-black sport-font italic tracking-tighter neon-text leading-none">ELITE V9</h1>
+            <div class="flex items-center gap-1 mt-1">
+                <span id="cloudStatus" class="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse"></span>
+                <p class="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Cloud Synced</p>
+            </div>
+        </div>
+        <button onclick="toggleSettings(true)" class="bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs font-bold flex flex-col items-end hover:border-lime-400">
+            <span class="text-[9px] text-zinc-400">MEMBERSHIP ⚙️</span>
+            <span id="headerPlanText">$599 / 月費</span>
+        </button>
+    </header>
+
+    <main class="max-w-md mx-auto pt-20 px-4 space-y-6">
+
+        <!-- ================= TAB 1: LOGGING ================= -->
+        <section id="tab-log" class="tab-content active space-y-5">
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div class="glass-card p-3 rounded-xl bg-zinc-900/50 flex flex-col justify-center border-l-2 border-l-lime-400">
+                    <p class="text-[9px] text-zinc-500 font-bold uppercase">This Cycle Total Spent</p>
+                    <div class="flex items-baseline gap-1">
+                        <span class="text-zinc-500 text-sm font-bold">$</span>
+                        <p id="totalSpentLabel" class="text-2xl font-bold sport-font text-white">0</p>
+                    </div>
+                </div>
+                <div class="grid grid-rows-2 gap-2">
+                    <div class="glass-card p-2 rounded-xl bg-zinc-900/50 flex justify-between items-center px-3 border-l-2 border-l-zinc-700">
+                        <p class="text-[9px] text-zinc-500 font-bold uppercase">Cost/Hr</p>
+                        <p id="costPerHour" class="text-sm font-bold sport-font">$0.00</p>
+                    </div>
+                    <div class="glass-card p-2 rounded-xl bg-zinc-900/50 flex justify-between items-center px-3 border-l-2 border-l-zinc-700">
+                        <p class="text-[9px] text-zinc-500 font-bold uppercase">Cost/Min</p>
+                        <p id="costPerMinute" class="text-sm font-bold sport-font">$0.00</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Form -->
+            <div class="glass-card rounded-2xl p-5 border border-zinc-800 shadow-2xl">
+                <h2 class="text-[11px] font-bold uppercase tracking-widest text-zinc-400 mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full neon-bg"></span> NEW WORKOUT
+                </h2>
+                
+                <div class="space-y-5">
+                    
+                    <div class="grid grid-cols-2 gap-3 pb-3 border-b border-zinc-800/50">
+                        <div>
+                            <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">場館類型 (Type)</label>
+                            <select id="inputGymType" onchange="toggleDropInFee()" class="w-full rounded-xl p-3 text-sm font-bold bg-zinc-900 border-zinc-700">
+                                <option value="sub" id="optSub">🏆 會員主場館</option>
+                                <option value="dropin">🎟️ 單次付費/其他</option>
+                            </select>
+                        </div>
+                        <div id="dropInFeeContainer" class="hidden animate-in fade-in">
+                            <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1 text-red-400">單次花費 ($)</label>
+                            <input type="number" id="inputDropInFee" placeholder="例如: 150" class="w-full rounded-xl p-3 text-sm font-bold sport-font border-red-900/50 focus:border-red-500 bg-red-900/10">
+                        </div>
+                        <div id="dateContainer" class="block animate-in fade-in">
+                            <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">日期 (Date)</label>
+                            <input type="date" id="inputDate" class="w-full rounded-xl p-3 text-sm font-bold">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="col-span-2">
+                            <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">體重 (BW kg)</label>
+                            <input type="number" id="inputWeight" step="0.1" placeholder="e.g. 75.5" class="w-full rounded-xl p-3 text-sm font-bold sport-font">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">訓練項目 (Exercises)</label>
+                        <button onclick="toggleTagModal(true)" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-left min-h-[48px] flex items-center justify-between group hover:border-lime-400 transition-colors">
+                            <span id="mainSelectedTagsDisplay" class="text-zinc-400 text-sm font-bold truncate">點擊選擇動作...</span>
+                            <span class="text-zinc-500 group-hover:text-lime-400 font-bold ml-2 shrink-0">＋</span>
+                        </button>
+                    </div>
+
+                    <!-- Dynamic Exercise Details Area -->
+                    <div id="exerciseDetailsContainer" class="space-y-2 empty:hidden"></div>
+
+                    <!-- Duration -->
+                    <div class="grid grid-cols-2 gap-3 items-end pt-2 border-t border-zinc-800/50">
+                        <div>
+                            <label class="text-[10px] text-zinc-500 font-bold uppercase block mb-1 text-center">場館總停留 時(Hr)</label>
+                            <input type="number" id="inputHours" pattern="[0-9]*" placeholder="0" class="w-full rounded-xl p-3 text-xl font-bold sport-font text-center">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-zinc-500 font-bold uppercase block mb-1 text-center">分 (Min)</label>
+                            <input type="number" id="inputMinutes" pattern="[0-9]*" placeholder="0" class="w-full rounded-xl p-3 text-xl font-bold sport-font text-center">
+                        </div>
+                    </div>
+
+                    <button id="addBtn" onclick="addSession()" class="w-full neon-bg text-black font-black py-4 rounded-xl sport-font text-lg transition-all active:scale-[0.98] mt-2 shadow-lg shadow-lime-400/20">
+                        SAVE LOG
+                    </button>
+                </div>
+            </div>
+            
+            <div id="homeHistoryList" class="space-y-2 pb-6"></div>
+        </section>
+
+
+        <!-- ================= TAB 2: CALENDAR ================= -->
+        <section id="tab-calendar" class="tab-content space-y-4">
+            <div class="glass-card rounded-2xl p-5 border border-zinc-800">
+                <div class="flex justify-between items-center mb-6">
+                    <button onclick="changeMonth(-1)" class="p-2 bg-zinc-800 rounded-lg font-bold hover:text-lime-400 transition-colors">◀</button>
+                    <h2 id="calendarMonthLabel" class="text-xl font-black sport-font tracking-widest">2024 / 04</h2>
+                    <button onclick="changeMonth(1)" class="p-2 bg-zinc-800 rounded-lg font-bold hover:text-lime-400 transition-colors">▶</button>
+                </div>
+                <div class="grid grid-cols-7 gap-4 mb-2 text-center">
+                    <div class="text-[10px] font-bold text-red-400">SUN</div>
+                    <div class="text-[10px] font-bold text-zinc-500">MON</div>
+                    <div class="text-[10px] font-bold text-zinc-500">TUE</div>
+                    <div class="text-[10px] font-bold text-zinc-500">WED</div>
+                    <div class="text-[10px] font-bold text-zinc-500">THU</div>
+                    <div class="text-[10px] font-bold text-zinc-500">FRI</div>
+                    <div class="text-[10px] font-bold text-zinc-500">SAT</div>
+                </div>
+                <div id="calendarGrid" class="calendar-grid"></div>
+            </div>
+
+            <div id="dayDetailsPanel" class="glass-card rounded-2xl p-5 border border-zinc-800 hidden">
+                <h3 id="detailDateLabel" class="text-sm font-bold neon-text mb-3 sport-font"></h3>
+                <div id="detailContent" class="space-y-3"></div>
+            </div>
+        </section>
+
+
+        <!-- ================= TAB 3: STATS/TRENDS ================= -->
+        <section id="tab-stats" class="tab-content space-y-6 pb-6">
+            <div class="glass-card rounded-2xl p-5 border border-zinc-800 text-center">
+                <h2 class="text-sm font-black sport-font text-zinc-400 mb-2">FINANCIAL SUMMARY</h2>
+                
+                <div class="bg-zinc-900/50 p-4 rounded-xl mb-4">
+                    <div class="flex justify-between text-xs mb-2">
+                        <span class="text-zinc-400">固定會費 (Membership)</span>
+                        <span id="statBaseFee" class="font-bold text-white">$0</span>
+                    </div>
+                    <div class="flex justify-between text-xs mb-2 pb-2 border-b border-zinc-700/50">
+                        <span class="text-zinc-400">單次額外花費 (Drop-ins)</span>
+                        <span id="statExtraFee" class="font-bold text-red-400">+$0</span>
+                    </div>
+                    <div class="flex justify-between items-end mt-2">
+                        <span class="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Total Investment</span>
+                        <span id="statTotalCost" class="text-2xl font-black sport-font neon-text">$0</span>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 border-t border-zinc-800 pt-4">
+                    <div>
+                        <p class="text-[10px] text-zinc-500 font-bold uppercase">Total Active Time</p>
+                        <p id="statTotalTime" class="text-xl font-bold sport-font">00:00</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-zinc-500 font-bold uppercase">Avg Duration</p>
+                        <p id="statAvgTime" class="text-xl font-bold sport-font">0 Min</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-2xl p-4 border border-zinc-800">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-400">📈 Progress Trend</h3>
+                    <select id="trendExerciseSelect" onchange="updateCharts()" class="bg-zinc-800 text-xs p-1.5 rounded-lg border-zinc-700 text-lime-400 font-bold outline-none max-w-[120px]">
+                        <option value="">選擇動作...</option>
+                    </select>
+                </div>
+                <div class="relative h-56 w-full">
+                    <canvas id="weightChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="glass-card rounded-2xl p-4 border border-zinc-800">
+                <h3 class="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-2">Duration Trend (Min)</h3>
+                <div class="relative h-40 w-full">
+                    <canvas id="durationChart"></canvas>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="fixed bottom-0 w-full bg-[#09090b]/95 backdrop-blur-lg border-t border-zinc-800 flex justify-around items-center pb-safe pt-2 pb-2 z-40">
+        <button onclick="switchTab('log')" id="nav-log" class="nav-item active flex flex-col items-center p-2 w-1/3">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            <span class="text-[9px] font-bold uppercase sport-font">LOG</span>
+        </button>
+        <button onclick="switchTab('calendar')" id="nav-calendar" class="nav-item text-zinc-500 flex flex-col items-center p-2 w-1/3">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+            <span class="text-[9px] font-bold uppercase sport-font">CALENDAR</span>
+        </button>
+        <button onclick="switchTab('stats')" id="nav-stats" class="nav-item text-zinc-500 flex flex-col items-center p-2 w-1/3">
+            <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            <span class="text-[9px] font-bold uppercase sport-font">STATS</span>
+        </button>
+    </nav>
+
+    <!-- ================= 核心修正：移除鎖定，並導入摺疊選單 ================= -->
+    <div id="tagModal" class="fixed top-0 left-0 w-full h-full z-[60] bg-[#09090b] hidden flex-col transition-transform duration-300 translate-y-full">
+        
+        <!-- 頂部 Header -->
+        <div class="flex-none flex justify-between items-center p-4 border-b border-zinc-800 bg-[#09090b]">
+            <h2 class="text-lg font-black sport-font italic">SELECT EXERCISES</h2>
+            <button onclick="toggleTagModal(false)" class="text-lime-400 font-bold px-4 py-2 bg-zinc-800 rounded-lg active:scale-95 transition-transform">完成 (DONE)</button>
+        </div>
+
+        <!-- 目前已選清單預覽 -->
+        <div class="flex-none px-4 py-3 bg-zinc-900 border-b border-zinc-800">
+            <p class="text-[10px] text-zinc-500 font-bold uppercase mb-2">已選動作 (Selected)</p>
+            <div id="modalSelectedTagsDisplay" class="flex flex-wrap gap-2 empty:hidden"></div>
+            <p id="modalEmptyText" class="text-xs text-zinc-600 font-bold italic">尚未選擇任何動作</p>
+        </div>
+
+        <!-- 自訂輸入區塊 -->
+        <div class="flex-none p-4 border-b border-zinc-800 bg-[#09090b]">
+            <div class="flex gap-2">
+                <input type="text" id="customTagInput" placeholder="找不到？輸入自訂動作" class="flex-1 rounded-lg p-2 text-sm bg-zinc-800 border-zinc-700">
+                <button onclick="addCustomTag()" class="bg-zinc-700 text-white px-4 rounded-lg font-bold text-sm active:scale-95 transition-transform">新增</button>
+            </div>
+        </div>
+        
+        <!-- 摺疊分類區塊 (可滑動區域) -->
+        <div class="flex-1 overflow-y-auto modal-scrollable p-4 pb-32 space-y-3" id="tagCategoriesContainer">
+            <!-- 由 JS 動態生成 Accordion -->
+        </div>
+    </div>
+
+    <!-- 修正 Settings Modal (移除鎖定) -->
+    <div id="settingsModal" class="fixed top-0 left-0 w-full h-full z-[60] flex items-end justify-center bg-black/80 backdrop-blur-sm hidden transition-opacity">
+        <div class="w-full max-w-md bg-zinc-900 border-t border-zinc-700 rounded-t-3xl p-6 space-y-6 shadow-2xl transform transition-transform translate-y-full max-h-[90vh] overflow-y-auto modal-scrollable" id="settingsContent">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-black sport-font italic text-white">MEMBERSHIP</h2>
+                <button onclick="toggleSettings(false)" class="text-zinc-500 hover:text-white p-2 bg-zinc-800 rounded-full w-8 h-8 flex items-center justify-center">✕</button>
+            </div>
+            <p class="text-xs text-zinc-500 -mt-2">設定您的收費與計算週期。若無包月請選「全單次」。</p>
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">主要收費方式</label>
+                    <select id="setPlanType" onchange="handlePlanTypeChange()" class="w-full rounded-xl p-3 text-sm font-bold bg-zinc-800 border-zinc-700">
+                        <option value="monthly">月費 (Monthly)</option>
+                        <option value="yearly">年費 (Yearly)</option>
+                        <option value="none">🎟️ 無綁約 / 全單次 (Drop-in Only)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">會費金額 ($)</label>
+                    <input type="number" id="setFee" class="w-full rounded-xl p-3 text-xl font-bold sport-font">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">追蹤開始日 (Cycle Start)</label>
+                        <input type="date" id="setStartDate" class="w-full rounded-xl p-3 text-sm font-bold">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">追蹤結束日 (Cycle End)</label>
+                        <input type="date" id="setEndDate" class="w-full rounded-xl p-3 text-sm font-bold">
+                    </div>
+                </div>
+            </div>
+            <button onclick="saveSettings()" class="w-full bg-white text-black font-black py-4 rounded-xl sport-font text-lg active:scale-95 transition-all mb-8">
+                SAVE PLAN
+            </button>
+        </div>
+    </div>
+
+    <div id="statusBox" class="fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold text-xs hidden shadow-2xl z-[80] transition-all border"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'elite-gym-v9';
+        
+        let auth, db, currentUser;
+        let allSessions = [];
+        let planSettings = { fee: 599, type: 'monthly', startDate: '', endDate: '' };
+
+        let workoutCategories = {
+            "🏋️ 胸部 (Chest)": ["槓鈴臥推", "啞鈴臥推", "胸推", "上斜臥推", "上斜胸飛鳥", "機械飛鳥", "蝴蝶機夾胸", "Cable夾胸", "伏地挺身"],
+            "🦇 背部 (Back)": ["引體向上", "滑輪下拉", "滑輪反手下拉", "槓鈴划船", "坐姿划船", "坐姿窄握划船", "坐姿寬握划船", "單臂啞鈴划船", "硬舉"],
+            "🦵 腿部 (Legs)": ["深蹲", "高腳杯深蹲", "相撲硬舉", "羅馬尼亞硬舉", "腿推舉", "分腿蹲", "腿彎舉", "腿屈伸", "坐姿腿伸直", "腿部外展", "臀推", "小腿提踵"],
+            "💪 肩/手 (Shoulders/Arms)": ["肩推", "側平舉", "前平舉", "滑輪側平舉", "反向飛鳥", "二頭彎舉", "三頭下壓", "法式彎舉"],
+            "🏃 有氧/核心 (Cardio)": ["跑步機", "飛輪", "登階機", "划船機", "有氧運動", "捲腹", "棒式"],
+            "⭐ 自訂 (Custom)": []
+        };
+        let selectedTags = []; 
+        let exerciseInputsData = {};
+
+        function isCardio(tag) {
+            return workoutCategories["🏃 有氧/核心 (Cardio)"].includes(tag) || tag.includes("有氧") || tag.includes("跑步") || tag.includes("飛輪");
+        }
+
+        let chartDuration = null; let chartWeight = null;
+        let currentCalYear = new Date().getFullYear(); let currentCalMonth = new Date().getMonth();
+
+        async function init() {
+            try {
+                if(Object.keys(firebaseConfig).length === 0) throw new Error("No config");
+                const app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => { if (user) { currentUser = user; setupListeners(); } });
+
+                document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
+                renderAccordionCategories();
+
+                // Window exposes
+                window.switchTab = switchTab; window.toggleSettings = toggleSettings; window.saveSettings = saveSettings;
+                window.toggleTagModal = toggleTagModal; window.toggleTag = toggleTag; window.addCustomTag = addCustomTag;
+                window.addSession = addSession; window.deleteSession = deleteSession; window.changeMonth = changeMonth;
+                window.showDayDetails = showDayDetails; window.updateCharts = updateCharts; window.handleExerciseInputChange = handleExerciseInputChange;
+                window.toggleDropInFee = toggleDropInFee; window.handlePlanTypeChange = handlePlanTypeChange;
+                window.toggleAccordion = toggleAccordion;
+
+            } catch (e) {
+                console.error(e); showToast('連線失敗', 'error'); document.getElementById('loadingScreen').classList.add('hidden');
+            }
+        }
+
+        function setupListeners() {
+            const settingsDoc = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'gym_settings', 'current_plan');
+            const sessionsCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'gym_sessions');
+
+            onSnapshot(settingsDoc, (docSnap) => {
+                if (docSnap.exists()) planSettings = { ...planSettings, ...docSnap.data() };
+                else {
+                    const today = new Date(); planSettings.startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0]; planSettings.endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().split('T')[0];
+                    setDoc(settingsDoc, planSettings);
+                }
+                calculatePlanData();
+            });
+
+            onSnapshot(sessionsCol, (snapshot) => {
+                allSessions = [];
+                snapshot.forEach((doc) => allSessions.push({ id: doc.id, ...doc.data() }));
+                allSessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                calculatePlanData(); renderHomeHistory(); renderCalendarGrid(); updateStatsTab();
+                document.getElementById('loadingScreen').classList.add('hidden');
+            });
+        }
+
+        // ================= ACCORDION UI LOGIC (v9 核心修正) =================
+        function renderAccordionCategories() {
+            const container = document.getElementById('tagCategoriesContainer');
+            let html = '';
+            let index = 0;
+            
+            for (const [cat, tags] of Object.entries(workoutCategories)) {
+                if(tags.length === 0 && cat === "⭐ 自訂 (Custom)") continue;
+                
+                // 第一個分類預設打開
+                const isExpanded = index === 0;
+                const chevron = isExpanded ? '▲' : '▼';
+                const displayClass = isExpanded ? 'block' : 'hidden';
+
+                html += `
+                <div class="border border-zinc-800 rounded-xl overflow-hidden bg-[#09090b]">
+                    <button onclick="toggleAccordion(${index})" class="w-full bg-zinc-900 p-4 flex justify-between items-center active:bg-zinc-800 transition-colors">
+                        <span class="text-sm font-bold text-zinc-300 tracking-wide">${cat}</span>
+                        <span id="chevron-${index}" class="text-lime-400 text-xs font-black">${chevron}</span>
+                    </button>
+                    <div id="panel-${index}" class="${displayClass} p-4 border-t border-zinc-800/50">
+                        <div class="flex flex-wrap gap-2">
+                            ${tags.map(t => `<button onclick="toggleTag('${t}')" id="btn-tag-${t}" class="tag-btn px-3 py-2 rounded-full border border-zinc-700 bg-zinc-800 text-xs font-bold text-zinc-300 active:scale-95 ${selectedTags.includes(t)?'selected':''}">${t}</button>`).join('')}
+                        </div>
+                    </div>
+                </div>`;
+                index++;
+            }
+            container.innerHTML = html;
+        }
+
+        function toggleAccordion(index) {
+            const panel = document.getElementById(`panel-${index}`);
+            const chevron = document.getElementById(`chevron-${index}`);
+            
+            if (panel.classList.contains('hidden')) {
+                panel.classList.remove('hidden');
+                panel.classList.add('block', 'animate-in', 'fade-in');
+                chevron.innerText = '▲';
+            } else {
+                panel.classList.add('hidden');
+                panel.classList.remove('block', 'animate-in', 'fade-in');
+                chevron.innerText = '▼';
+            }
+        }
+
+        function updateSelectedTagsDisplay() {
+            // Update Modal internal display
+            const modalDisplay = document.getElementById('modalSelectedTagsDisplay');
+            const emptyText = document.getElementById('modalEmptyText');
+            
+            if (selectedTags.length === 0) {
+                modalDisplay.innerHTML = '';
+                emptyText.style.display = 'block';
+            } else {
+                emptyText.style.display = 'none';
+                modalDisplay.innerHTML = selectedTags.map(t => 
+                    `<div class="flex items-center gap-1 bg-lime-400 text-black px-2 py-1 rounded text-xs font-bold">
+                        ${t} <button onclick="toggleTag('${t}')" class="text-black/60 hover:text-black ml-1 text-[10px]">✖</button>
+                    </div>`
+                ).join('');
+            }
+
+            // Update Main Screen Display
+            const mainDisplay = document.getElementById('mainSelectedTagsDisplay');
+            if (selectedTags.length === 0) {
+                mainDisplay.innerText = "點擊選擇動作...";
+                mainDisplay.classList.remove('text-lime-400');
+                mainDisplay.classList.add('text-zinc-400');
+            } else {
+                mainDisplay.innerText = selectedTags.join(', ');
+                mainDisplay.classList.remove('text-zinc-400');
+                mainDisplay.classList.add('text-lime-400');
+            }
+        }
+
+        function toggleTag(tag) {
+            const idx = selectedTags.indexOf(tag);
+            const btn = document.getElementById(`btn-tag-${tag}`);
+            
+            if(idx > -1) { 
+                selectedTags.splice(idx, 1); 
+                if(btn) btn.classList.remove('selected'); 
+                delete exerciseInputsData[tag]; 
+            } else { 
+                selectedTags.push(tag); 
+                if(btn) btn.classList.add('selected'); 
+                if(!exerciseInputsData[tag]) exerciseInputsData[tag] = {}; 
+            }
+            updateSelectedTagsDisplay();
+            renderExerciseInputs();
+        }
+
+        function addCustomTag() {
+            const input = document.getElementById('customTagInput');
+            const val = input.value.trim();
+            if(!val) return;
+            if(!workoutCategories["⭐ 自訂 (Custom)"].includes(val)) workoutCategories["⭐ 自訂 (Custom)"].push(val);
+            
+            if(!selectedTags.includes(val)) { 
+                selectedTags.push(val); 
+                exerciseInputsData[val] = {}; 
+            }
+            input.value = ''; 
+            renderAccordionCategories(); // Re-render to show the new custom tag
+            updateSelectedTagsDisplay();
+            renderExerciseInputs(); 
+            showToast('已新增動作', 'success');
+        }
+
+        function renderExerciseInputs() {
+            const container = document.getElementById('exerciseDetailsContainer');
+            if(selectedTags.length === 0) { container.innerHTML = ''; return; }
+            container.innerHTML = selectedTags.map(tag => {
+                const d = exerciseInputsData[tag] || {};
+                const isCardioType = isCardio(tag);
+                
+                let inputHtml = '';
+                if(isCardioType) {
+                    inputHtml = `
+                        <div class="relative w-1/2">
+                            <input type="number" value="${d.mins || ''}" onchange="handleExerciseInputChange('${tag}', 'mins', this.value)" placeholder="時間" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs p-2 font-bold sport-font text-cyan-400" id="input-mins-${tag}">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-zinc-500 font-bold">分</span>
+                        </div>
+                        <div class="relative w-1/2">
+                            <input type="number" value="${d.kcal || ''}" onchange="handleExerciseInputChange('${tag}', 'kcal', this.value)" placeholder="消耗" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs p-2 font-bold sport-font text-orange-400" id="input-kcal-${tag}">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-zinc-500 font-bold">大卡</span>
+                        </div>
+                    `;
+                } else {
+                    inputHtml = `
+                        <div class="relative w-1/2">
+                            <input type="number" value="${d.kg || ''}" onchange="handleExerciseInputChange('${tag}', 'kg', this.value)" placeholder="重量" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs p-2 font-bold sport-font" id="input-kg-${tag}">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-zinc-500 font-bold">kg</span>
+                        </div>
+                        <div class="relative w-1/2">
+                            <input type="number" value="${d.sets || ''}" onchange="handleExerciseInputChange('${tag}', 'sets', this.value)" placeholder="組數" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs p-2 font-bold sport-font" id="input-sets-${tag}">
+                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-zinc-500 font-bold">組</span>
+                        </div>
+                    `;
+                }
+
+                return `
+                <div class="flex items-center justify-between gap-2 bg-zinc-800/80 p-2.5 rounded-xl border border-zinc-700 animate-in fade-in">
+                    <span class="text-xs font-bold ${isCardioType ? 'text-cyan-400' : 'text-lime-400'} w-4/12 truncate">${tag}</span>
+                    <div class="w-8/12 flex gap-2">
+                        ${inputHtml}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function handleExerciseInputChange(tag, field, val) {
+            if(!exerciseInputsData[tag]) exerciseInputsData[tag] = {};
+            exerciseInputsData[tag][field] = val;
+        }
+
+        function toggleTagModal(show) {
+            const m = document.getElementById('tagModal');
+            // 完全移除鎖定 body 程式碼
+            if(show) { 
+                m.classList.remove('hidden'); 
+                setTimeout(() => { m.classList.remove('translate-y-full'); }, 10); 
+            } else { 
+                m.classList.add('translate-y-full'); 
+                setTimeout(() => m.classList.add('hidden'), 300); 
+            }
+        }
+
+        // ================= CRUD (WITH GYM TYPE) =================
+        function toggleDropInFee() {
+            const type = document.getElementById('inputGymType').value;
+            const container = document.getElementById('dropInFeeContainer');
+            const dateContainer = document.getElementById('dateContainer');
+            if(type === 'dropin') {
+                container.classList.remove('hidden'); dateContainer.classList.add('hidden'); 
+                document.getElementById('inputDate').value = new Date().toISOString().split('T')[0]; 
+            } else {
+                container.classList.add('hidden'); dateContainer.classList.remove('hidden');
+            }
+        }
+
+        async function addSession() {
+            if (!currentUser) return;
+            const gymType = document.getElementById('inputGymType').value;
+            const dropInFee = gymType === 'dropin' ? (parseFloat(document.getElementById('inputDropInFee').value) || 0) : 0;
+            const date = document.getElementById('inputDate').value;
+            const bw = parseFloat(document.getElementById('inputWeight').value) || null;
+            const h = parseInt(document.getElementById('inputHours').value) || 0;
+            const m = parseInt(document.getElementById('inputMinutes').value) || 0;
+            const totalSec = (h * 3600) + (m * 60);
+
+            const exerciseList = selectedTags.map(tag => {
+                if(isCardio(tag)) {
+                    const minsEl = document.getElementById(`input-mins-${tag}`);
+                    const kcalEl = document.getElementById(`input-kcal-${tag}`);
+                    return { name: tag, mins: minsEl ? parseInt(minsEl.value)||0 : 0, kcal: kcalEl ? parseInt(kcalEl.value)||0 : 0, type: 'cardio' };
+                } else {
+                    const kgEl = document.getElementById(`input-kg-${tag}`);
+                    const setsEl = document.getElementById(`input-sets-${tag}`);
+                    return { name: tag, weight: kgEl ? parseFloat(kgEl.value)||0 : 0, sets: setsEl ? parseInt(setsEl.value)||0 : 0, type: 'weight' };
+                }
+            });
+
+            if (totalSec <= 0 && !bw && exerciseList.length === 0) { showToast('請至少輸入一項記錄', 'error'); return; }
+
+            const btn = document.getElementById('addBtn'); btn.innerText = "SAVING..."; btn.disabled = true;
+
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'gym_sessions'), {
+                    date, bodyWeight: bw, h, m, totalSeconds: totalSec, exercises: exerciseList,
+                    gymType, dropInFee, timestamp: serverTimestamp()
+                });
+                
+                document.getElementById('inputHours').value = ''; document.getElementById('inputMinutes').value = '';
+                document.getElementById('inputDropInFee').value = '';
+                document.getElementById('inputGymType').value = planSettings.type === 'none' ? 'dropin' : 'sub'; toggleDropInFee();
+                
+                // Clear tags
+                selectedTags = []; exerciseInputsData = {}; 
+                renderAccordionCategories(); // refresh buttons
+                updateSelectedTagsDisplay();
+                renderExerciseInputs();
+                
+                showToast('紀錄成功', 'success');
+            } catch(e) { showToast('儲存失敗', 'error'); } 
+            finally { btn.innerText = "SAVE LOG"; btn.disabled = false; }
+        }
+
+        async function deleteSession(id) {
+            if (!currentUser || !confirm("確定刪除此紀錄？")) return;
+            await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'gym_sessions', id));
+            showToast('紀錄已刪除', 'success');
+        }
+
+        // ================= PLAN CALCULATION =================
+        function handlePlanTypeChange() {
+            if(document.getElementById('setPlanType').value === 'none') {
+                document.getElementById('setFee').value = 0;
+            }
+        }
+
+        function calculatePlanData() {
+            let typeStr = '月費';
+            if(planSettings.type === 'yearly') typeStr = '年費';
+            if(planSettings.type === 'none') typeStr = '全單次';
+            document.getElementById('headerPlanText').innerText = `$${planSettings.fee || 0} / ${typeStr}`;
+            
+            const optSub = document.getElementById('optSub');
+            const gymTypeSelect = document.getElementById('inputGymType');
+            if(planSettings.type === 'none') {
+                optSub.style.display = 'none';
+                if(gymTypeSelect.value === 'sub') { gymTypeSelect.value = 'dropin'; toggleDropInFee(); }
+            } else {
+                optSub.style.display = 'block';
+            }
+
+            const valid = allSessions.filter(s => {
+                if(!planSettings.startDate || !planSettings.endDate) return true;
+                return s.date >= planSettings.startDate && s.date <= planSettings.endDate;
+            });
+
+            const totalSec = valid.reduce((sum, s) => sum + (s.totalSeconds||0), 0);
+            const totalDropIn = valid.reduce((sum, s) => sum + (s.dropInFee||0), 0);
+            
+            const baseFee = planSettings.type === 'none' ? 0 : (planSettings.fee || 0);
+            const totalCost = baseFee + totalDropIn;
+
+            document.getElementById('totalSpentLabel').innerText = totalCost.toLocaleString();
+
+            if(totalSec > 0 && totalCost > 0) {
+                document.getElementById('costPerHour').innerText = '$' + (totalCost / (totalSec/3600)).toFixed(2);
+                document.getElementById('costPerMinute').innerText = '$' + (totalCost / (totalSec/60)).toFixed(2);
+            } else {
+                document.getElementById('costPerHour').innerText = '$0.00';
+                document.getElementById('costPerMinute').innerText = '$0.00';
+            }
+
+            document.getElementById('statBaseFee').innerText = `$${baseFee}`;
+            document.getElementById('statExtraFee').innerText = `+$${totalDropIn}`;
+            document.getElementById('statTotalCost').innerText = `$${totalCost.toLocaleString()}`;
+        }
+
+        function renderHomeHistory() {
+            const list = document.getElementById('homeHistoryList');
+            const recent = allSessions.slice(0, 4);
+            if(recent.length === 0) { list.innerHTML = `<p class="text-zinc-600 text-xs text-center mt-4 italic">尚無紀錄</p>`; return; }
+
+            list.innerHTML = recent.map(s => {
+                let exerciseStr = '';
+                if(s.exercises && s.exercises.length > 0) {
+                    exerciseStr = s.exercises.map(e => {
+                        let dStr = '';
+                        if(e.type === 'cardio' || e.mins || e.kcal) {
+                            let details = [];
+                            if(e.mins) details.push(`${e.mins}m`);
+                            if(e.kcal) details.push(`${e.kcal}卡`);
+                            dStr = details.length > 0 ? ` <span class="text-cyan-400">(${details.join('/')})</span>` : '';
+                        } else {
+                            dStr = (e.weight||e.sets) ? ` <span class="text-lime-400">(${e.weight?e.weight+'kg':''}${e.weight&&e.sets?'/':''}${e.sets?e.sets+'組':''})</span>` : '';
+                        }
+                        return `<span class="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded text-[10px] border border-zinc-700">${e.name}${dStr}</span>`;
+                    }).join('');
+                } else exerciseStr = '<span class="text-[10px] text-zinc-600">一般訓練</span>';
+
+                const dropInBadge = s.gymType === 'dropin' ? `<span class="bg-red-500/20 text-red-400 border border-red-500/50 text-[9px] font-bold px-1.5 py-0.5 rounded ml-2">單次 $${s.dropInFee||0}</span>` : '';
+
+                return `
+                <div class="glass-card p-3 rounded-xl flex justify-between items-start relative overflow-hidden group border-zinc-800">
+                    <div class="flex-1">
+                        <div class="flex items-center mb-2">
+                            <span class="text-[11px] font-black neon-text sport-font">${s.date.substring(5)}</span>
+                            <span class="text-xs font-bold sport-font tracking-wide text-white ml-2">${s.h}h ${s.m}m</span>
+                            ${dropInBadge}
+                        </div>
+                        <div class="flex flex-wrap gap-1">${exerciseStr}</div>
+                    </div>
+                    <button onclick="deleteSession('${s.id}')" class="text-zinc-600 hover:text-red-500 p-2 ml-2 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                </div>`
+            }).join('');
+        }
+
+        // ================= CALENDAR LOGIC =================
+        function changeMonth(delta) { currentCalMonth += delta; if(currentCalMonth>11){currentCalMonth=0;currentCalYear++;}else if(currentCalMonth<0){currentCalMonth=11;currentCalYear--;} renderCalendarGrid(); }
+
+        function renderCalendarGrid() {
+            document.getElementById('calendarMonthLabel').innerText = `${currentCalYear} / ${String(currentCalMonth+1).padStart(2,'0')}`;
+            const grid = document.getElementById('calendarGrid'); grid.innerHTML = '';
+            document.getElementById('dayDetailsPanel').classList.add('hidden');
+
+            const firstDay = new Date(currentCalYear, currentCalMonth, 1).getDay();
+            const daysInMonth = new Date(currentCalYear, currentCalMonth + 1, 0).getDate();
+
+            for(let i=0; i<firstDay; i++) grid.innerHTML += `<div class="calendar-day empty"></div>`;
+            for(let d=1; d<=daysInMonth; d++) {
+                const dateStr = `${currentCalYear}-${String(currentCalMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+                const hasData = allSessions.some(s => s.date === dateStr);
+                grid.innerHTML += `<div onclick="showDayDetails('${dateStr}', this)" class="calendar-day active ${hasData ? 'has-data' : ''}">${d}</div>`;
+            }
+        }
+
+        function showDayDetails(dateStr, el) {
+            document.querySelectorAll('.calendar-day').forEach(d => d.classList.remove('selected')); el.classList.add('selected');
+            const panel = document.getElementById('dayDetailsPanel'); const content = document.getElementById('detailContent');
+            const label = document.getElementById('detailDateLabel'); const daySessions = allSessions.filter(s => s.date === dateStr);
+            label.innerText = `LOGS FOR ${dateStr}`;
+            
+            if(daySessions.length === 0) content.innerHTML = `<p class="text-xs text-zinc-500 italic">No activity logged.</p>`;
+            else {
+                content.innerHTML = daySessions.map(s => {
+                    let exList = "";
+                    if(s.exercises && s.exercises.length>0) {
+                        exList = s.exercises.map(e => {
+                            let detailStr = '';
+                            if(e.type === 'cardio' || e.mins || e.kcal) {
+                                let parts = [];
+                                if(e.mins) parts.push(`${e.mins}m`);
+                                if(e.kcal) parts.push(`${e.kcal}大卡`);
+                                detailStr = `<span class="text-cyan-400 font-bold sport-font">${parts.join(' / ')}</span>`;
+                            } else {
+                                detailStr = `<span class="text-lime-400 font-bold sport-font">${e.weight?e.weight+'kg':''} ${e.weight&&e.sets?'x':''} ${e.sets?e.sets+'組':''}</span>`;
+                            }
+                            return `<div class="flex justify-between text-xs mt-1 border-t border-zinc-700/50 pt-1"><span class="text-zinc-300">${e.name}</span>${detailStr}</div>`;
+                        }).join('');
+                    }
+                    const dropInInfo = s.gymType === 'dropin' ? `<span class="text-red-400 text-[10px] ml-2 border border-red-400/50 px-1 rounded">單次 $${s.dropInFee}</span>` : '';
+                    return `
+                    <div class="bg-zinc-800/50 p-3 rounded-xl border border-zinc-700/50">
+                        <div class="flex justify-between items-baseline mb-2">
+                            <div class="flex items-center"><span class="text-sm font-bold sport-font text-white">${s.h}h ${s.m}m</span>${dropInInfo}</div>
+                            ${s.bodyWeight ? `<span class="text-[10px] text-zinc-400">BW: <span class="text-white">${s.bodyWeight}kg</span></span>` : ''}
+                        </div>
+                        ${exList}
+                    </div>`
+                }).join('');
+            }
+            panel.classList.remove('hidden');
+        }
+
+        // ================= STATS & CHARTS LOGIC =================
+        function updateStatsTab() {
+            const cm = new Date().getMonth(); const cy = new Date().getFullYear();
+            const monthSessions = allSessions.filter(s => { const d = new Date(s.date); return d.getMonth() === cm && d.getFullYear() === cy; });
+
+            const totalSec = monthSessions.reduce((sum, s) => sum + (s.totalSeconds||0), 0);
+            const th = Math.floor(totalSec/3600); const tm = Math.floor((totalSec%3600)/60);
+            document.getElementById('statTotalTime').innerText = `${String(th).padStart(2,'0')}:${String(tm).padStart(2,'0')}`;
+            document.getElementById('statAvgTime').innerText = monthSessions.length ? `${Math.round(totalSec/60/monthSessions.length)} Min` : '0 Min';
+
+            const uniqueExercises = new Set();
+            monthSessions.forEach(s => { if(s.exercises) s.exercises.forEach(e => uniqueExercises.add(e.name)); });
+            const selectEl = document.getElementById('trendExerciseSelect'); const currentSelection = selectEl.value;
+            let optionsHtml = `<option value="">選擇分析動作...</option>`;
+            Array.from(uniqueExercises).sort().forEach(ex => { optionsHtml += `<option value="${ex}" ${ex === currentSelection ? 'selected' : ''}>${ex}</option>`; });
+            selectEl.innerHTML = optionsHtml;
+            updateCharts();
+        }
+
+        function updateCharts() {
+            const cm = new Date().getMonth(); const cy = new Date().getFullYear();
+            const monthSessions = [...allSessions].filter(s => { const d = new Date(s.date); return d.getMonth() === cm && d.getFullYear() === cy; }).reverse();
+            const targetExercise = document.getElementById('trendExerciseSelect').value;
+            const isCardioTarget = isCardio(targetExercise);
+
+            const labels = []; const durationData = []; const weightData = []; const exercisePrData = [];
+            const dateMap = {};
+
+            monthSessions.forEach(s => {
+                const shortD = s.date.substring(5);
+                if(!dateMap[shortD]) dateMap[shortD] = { dur:0, bw: null, exData: null };
+                dateMap[shortD].dur += Math.round(s.totalSeconds/60);
+                if(s.bodyWeight) dateMap[shortD].bw = s.bodyWeight;
+                
+                if(targetExercise && s.exercises) {
+                    const matched = s.exercises.filter(e => e.name === targetExercise);
+                    if(matched.length > 0) {
+                        if (isCardioTarget) {
+                            const sumKcal = matched.reduce((sum, e) => sum + (e.kcal||0), 0);
+                            if(sumKcal > 0) dateMap[shortD].exData = (dateMap[shortD].exData||0) + sumKcal;
+                        } else {
+                            const maxW = Math.max(...matched.map(e => e.weight||0));
+                            if(maxW > 0 && (dateMap[shortD].exData === null || maxW > dateMap[shortD].exData)) dateMap[shortD].exData = maxW;
+                        }
+                    }
+                }
+            });
+
+            for(const [d, vals] of Object.entries(dateMap)) { labels.push(d); durationData.push(vals.dur); weightData.push(vals.bw); exercisePrData.push(vals.exData); }
+
+            Chart.defaults.color = '#71717a'; Chart.defaults.font.family = "'Oswald', sans-serif";
+            const ctx1 = document.getElementById('durationChart').getContext('2d');
+            if(chartDuration) chartDuration.destroy();
+            chartDuration = new Chart(ctx1, { type: 'bar', data: { labels: labels, datasets: [{ data: durationData, backgroundColor: '#a3e635', borderRadius: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { y: { beginAtZero: true, grid: {color: '#27272a'} }, x: { grid: {display: false} } } } });
+
+            const ctx2 = document.getElementById('weightChart').getContext('2d');
+            if(chartWeight) chartWeight.destroy();
+            const datasets = [{ label: '體重 (kg)', data: weightData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3, spanGaps: true, pointBackgroundColor: '#3b82f6' }];
+            
+            if(targetExercise) {
+                const labelName = isCardioTarget ? `${targetExercise} (大卡)` : `${targetExercise} (kg)`;
+                const lineColor = isCardioTarget ? '#fb923c' : '#ef4444';
+                const bgColor = isCardioTarget ? 'rgba(251, 146, 60, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+                
+                datasets.push({ label: labelName, data: exercisePrData, borderColor: lineColor, backgroundColor: bgColor, fill: true, tension: 0.3, spanGaps: true, pointBackgroundColor: lineColor, borderWidth: 3 });
+            }
+            
+            chartWeight = new Chart(ctx2, { type: 'line', data: { labels: labels, datasets: datasets }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: {size: 10} } } }, scales: { y: { grid: {color: '#27272a'} }, x: { grid: {display: false} } } } });
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(el => { el.classList.remove('active', 'text-lime-400'); el.classList.add('text-zinc-500'); });
+            const activeBtn = document.getElementById(`nav-${tabId}`); activeBtn.classList.remove('text-zinc-500'); activeBtn.classList.add('active', 'text-lime-400');
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            if(tabId === 'stats' && chartDuration) { chartDuration.update(); chartWeight.update(); }
+        }
+
+        function toggleSettings(show) {
+            const m = document.getElementById('settingsModal'); const c = document.getElementById('settingsContent');
+            if(show) { document.getElementById('setFee').value = planSettings.fee; document.getElementById('setPlanType').value = planSettings.type; document.getElementById('setStartDate').value = planSettings.startDate; document.getElementById('setEndDate').value = planSettings.endDate; m.classList.remove('hidden'); setTimeout(() => c.classList.remove('translate-y-full'), 10); } 
+            else { c.classList.add('translate-y-full'); setTimeout(() => m.classList.add('hidden'), 300); }
+        }
+
+        async function saveSettings() {
+            if(!currentUser) return;
+            planSettings.fee = parseInt(document.getElementById('setFee').value) || 0; planSettings.type = document.getElementById('setPlanType').value; planSettings.startDate = document.getElementById('setStartDate').value; planSettings.endDate = document.getElementById('setEndDate').value;
+            try { await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'gym_settings', 'current_plan'), planSettings); toggleSettings(false); showToast('設定已更新', 'success'); } catch(e) { showToast('更新失敗', 'error'); }
+        }
+
+        function showToast(text, type) {
+            const box = document.getElementById('statusBox'); box.innerText = text; box.className = `fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold text-xs z-[80] shadow-2xl border ${type === 'error' ? 'bg-red-500/90 text-white border-red-400' : 'bg-lime-400 text-black border-lime-300'}`; box.classList.remove('hidden'); setTimeout(() => box.classList.add('hidden'), 2000);
+        }
+
+        init();
+    </script>
+</body>
+</html>

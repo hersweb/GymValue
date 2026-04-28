@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ELITE GYM APP v9</title>
+    <title>ELITE GYM APP v9.3</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -49,7 +49,6 @@
         .nav-item { transition: color 0.2s; }
         .nav-item.active { color: #a3e635; }
 
-        /* 確保彈出視窗可以順利滾動 */
         .modal-scrollable {
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
@@ -60,19 +59,19 @@
 
     <div id="loadingScreen" class="fixed inset-0 z-[100] bg-[#09090b] flex flex-col items-center justify-center">
         <div class="w-8 h-8 border-4 border-zinc-800 border-t-lime-400 rounded-full animate-spin mb-4"></div>
-        <p class="text-xs font-bold sport-font tracking-widest text-zinc-500">SYNCING V9...</p>
+        <p class="text-xs font-bold sport-font tracking-widest text-zinc-500">SYNCING CLOUD...</p>
     </div>
 
     <!-- Top Header -->
     <header class="fixed top-0 w-full bg-[#09090b]/90 backdrop-blur-md z-40 border-b border-zinc-800 px-4 py-3 flex justify-between items-center">
         <div>
-            <h1 class="text-2xl font-black sport-font italic tracking-tighter neon-text leading-none">ELITE V9</h1>
+            <h1 class="text-2xl font-black sport-font italic tracking-tighter neon-text leading-none">ELITE V9.3</h1>
             <div class="flex items-center gap-1 mt-1">
                 <span id="cloudStatus" class="w-1.5 h-1.5 rounded-full bg-lime-400 animate-pulse"></span>
-                <p class="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Cloud Synced</p>
+                <p id="cloudText" class="text-[9px] text-zinc-500 font-bold uppercase tracking-widest">Cloud Synced</p>
             </div>
         </div>
-        <button onclick="toggleSettings(true)" class="bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs font-bold flex flex-col items-end hover:border-lime-400">
+        <button onclick="toggleSettings(true)" class="bg-zinc-800 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs font-bold flex flex-col items-end hover:border-lime-400 transition-colors">
             <span class="text-[9px] text-zinc-400">MEMBERSHIP ⚙️</span>
             <span id="headerPlanText">$599 / 月費</span>
         </button>
@@ -137,7 +136,10 @@
                     </div>
 
                     <div>
-                        <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block mb-1">訓練項目 (Exercises)</label>
+                        <div class="flex justify-between items-end mb-1">
+                            <label class="text-[10px] text-zinc-500 font-bold uppercase ml-1 block">訓練項目 (Exercises)</label>
+                            <span class="text-[9px] text-zinc-600 font-bold">可重複選取同一動作</span>
+                        </div>
                         <button onclick="toggleTagModal(true)" class="w-full bg-zinc-800 border border-zinc-700 rounded-xl p-3 text-left min-h-[48px] flex items-center justify-between group hover:border-lime-400 transition-colors">
                             <span id="mainSelectedTagsDisplay" class="text-zinc-400 text-sm font-bold truncate">點擊選擇動作...</span>
                             <span class="text-zinc-500 group-hover:text-lime-400 font-bold ml-2 shrink-0">＋</span>
@@ -145,7 +147,7 @@
                     </div>
 
                     <!-- Dynamic Exercise Details Area -->
-                    <div id="exerciseDetailsContainer" class="space-y-2 empty:hidden"></div>
+                    <div id="exerciseDetailsContainer" class="space-y-3 empty:hidden"></div>
 
                     <!-- Duration -->
                     <div class="grid grid-cols-2 gap-3 items-end pt-2 border-t border-zinc-800/50">
@@ -265,20 +267,20 @@
         </button>
     </nav>
 
-    <!-- ================= 核心修正：移除鎖定，並導入摺疊選單 ================= -->
+    <!-- Tag Modal (Accordion Style) -->
     <div id="tagModal" class="fixed top-0 left-0 w-full h-full z-[60] bg-[#09090b] hidden flex-col transition-transform duration-300 translate-y-full">
         
         <!-- 頂部 Header -->
         <div class="flex-none flex justify-between items-center p-4 border-b border-zinc-800 bg-[#09090b]">
-            <h2 class="text-lg font-black sport-font italic">SELECT EXERCISES</h2>
+            <h2 class="text-lg font-black sport-font italic">ADD EXERCISES</h2>
             <button onclick="toggleTagModal(false)" class="text-lime-400 font-bold px-4 py-2 bg-zinc-800 rounded-lg active:scale-95 transition-transform">完成 (DONE)</button>
         </div>
 
         <!-- 目前已選清單預覽 -->
         <div class="flex-none px-4 py-3 bg-zinc-900 border-b border-zinc-800">
-            <p class="text-[10px] text-zinc-500 font-bold uppercase mb-2">已選動作 (Selected)</p>
+            <p class="text-[10px] text-zinc-500 font-bold uppercase mb-2">本次加入的動作清單</p>
             <div id="modalSelectedTagsDisplay" class="flex flex-wrap gap-2 empty:hidden"></div>
-            <p id="modalEmptyText" class="text-xs text-zinc-600 font-bold italic">尚未選擇任何動作</p>
+            <p id="modalEmptyText" class="text-xs text-zinc-600 font-bold italic">尚未選擇任何動作，點擊下方動作加入</p>
         </div>
 
         <!-- 自訂輸入區塊 -->
@@ -289,13 +291,13 @@
             </div>
         </div>
         
-        <!-- 摺疊分類區塊 (可滑動區域) -->
+        <!-- 摺疊分類區塊 -->
         <div class="flex-1 overflow-y-auto modal-scrollable p-4 pb-32 space-y-3" id="tagCategoriesContainer">
             <!-- 由 JS 動態生成 Accordion -->
         </div>
     </div>
 
-    <!-- 修正 Settings Modal (移除鎖定) -->
+    <!-- Settings Modal -->
     <div id="settingsModal" class="fixed top-0 left-0 w-full h-full z-[60] flex items-end justify-center bg-black/80 backdrop-blur-sm hidden transition-opacity">
         <div class="w-full max-w-md bg-zinc-900 border-t border-zinc-700 rounded-t-3xl p-6 space-y-6 shadow-2xl transform transition-transform translate-y-full max-h-[90vh] overflow-y-auto modal-scrollable" id="settingsContent">
             <div class="flex justify-between items-center">
@@ -340,16 +342,17 @@
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-    apiKey: "AIzaSyD0LygBOatO2jtR_uK_LZljro-rfPMUmzY",
-    authDomain: "mygymtracker-c4e74.firebaseapp.com",
-    projectId: "mygymtracker-c4e74",
-    storageBucket: "mygymtracker-c4e74.firebasestorage.app",
-    messagingSenderId: "454706641060",
-    appId: "1:454706641060:web:4e3025c82b26b86d79ce31",
-    measurementId: "G-KKMF1CVMQE"
-};
-const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
+        const userFirebaseConfig = {
+            apiKey: "AIzaSyD0LygBOatO2jtR_uK_LZljro-rfPMUmzY",
+            authDomain: "mygymtracker-c4e74.firebaseapp.com",
+            projectId: "mygymtracker-c4e74",
+            storageBucket: "mygymtracker-c4e74.firebasestorage.app",
+            messagingSenderId: "454706641060",
+            appId: "1:454706641060:web:4e3825c82b26b86d79ce31", 
+            measurementId: "G-KKMF1CVMQE"
+        };
+        
+        let currentAppId = 'elite-gym-v93';
         
         let auth, db, currentUser;
         let allSessions = [];
@@ -363,8 +366,9 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
             "🏃 有氧/核心 (Cardio)": ["跑步機", "飛輪", "登階機", "划船機", "有氧運動", "捲腹", "棒式"],
             "⭐ 自訂 (Custom)": []
         };
-        let selectedTags = []; 
-        let exerciseInputsData = {};
+        
+        // 核心變更：從字串陣列改為物件陣列，允許重複動作
+        let currentExercises = []; 
 
         function isCardio(tag) {
             return workoutCategories["🏃 有氧/核心 (Cardio)"].includes(tag) || tag.includes("有氧") || tag.includes("跑步") || tag.includes("飛輪");
@@ -375,36 +379,60 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
 
         async function init() {
             try {
-                if(Object.keys(firebaseConfig).length === 0) throw new Error("No config");
-                const app = initializeApp(firebaseConfig); auth = getAuth(app); db = getFirestore(app);
-
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
+                let appToUse;
+                try {
+                    appToUse = initializeApp(userFirebaseConfig); 
+                    auth = getAuth(appToUse); 
                     await signInAnonymously(auth);
+                    db = getFirestore(appToUse);
+                } catch (e) {
+                    if (e.message && (e.message.includes('blocked') || e.message.includes('not-valid') || e.code === 'auth/api-key-not-valid')) {
+                        if (typeof __firebase_config !== 'undefined') {
+                            const previewApp = initializeApp(JSON.parse(__firebase_config), "PreviewApp");
+                            auth = getAuth(previewApp);
+                            db = getFirestore(previewApp);
+                            currentAppId = typeof __app_id !== 'undefined' ? __app_id : currentAppId;
+
+                            if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                await signInWithCustomToken(auth, __initial_auth_token);
+                            } else {
+                                await signInAnonymously(auth);
+                            }
+                            
+                            setTimeout(() => {
+                                showToast('預覽模式：已切換至測試庫', 'success');
+                                document.getElementById('cloudText').innerText = "Preview Mode";
+                                document.getElementById('cloudStatus').classList.replace('bg-lime-400', 'bg-cyan-400');
+                            }, 1000);
+                        } else { throw e; }
+                    } else { throw e; }
                 }
 
-                onAuthStateChanged(auth, (user) => { if (user) { currentUser = user; setupListeners(); } });
+                onAuthStateChanged(auth, (user) => { 
+                    if (user) { currentUser = user; setupListeners(); } 
+                });
 
                 document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
                 renderAccordionCategories();
 
                 // Window exposes
                 window.switchTab = switchTab; window.toggleSettings = toggleSettings; window.saveSettings = saveSettings;
-                window.toggleTagModal = toggleTagModal; window.toggleTag = toggleTag; window.addCustomTag = addCustomTag;
-                window.addSession = addSession; window.deleteSession = deleteSession; window.changeMonth = changeMonth;
-                window.showDayDetails = showDayDetails; window.updateCharts = updateCharts; window.handleExerciseInputChange = handleExerciseInputChange;
-                window.toggleDropInFee = toggleDropInFee; window.handlePlanTypeChange = handlePlanTypeChange;
-                window.toggleAccordion = toggleAccordion;
+                window.toggleTagModal = toggleTagModal; window.addExercise = addExercise; window.removeExercise = removeExercise; 
+                window.addCustomTag = addCustomTag; window.addSession = addSession; window.deleteSession = deleteSession; 
+                window.changeMonth = changeMonth; window.showDayDetails = showDayDetails; window.updateCharts = updateCharts; 
+                window.handleExerciseInputChange = handleExerciseInputChange; window.toggleDropInFee = toggleDropInFee; 
+                window.handlePlanTypeChange = handlePlanTypeChange; window.toggleAccordion = toggleAccordion;
 
             } catch (e) {
-                console.error(e); showToast('連線失敗', 'error'); document.getElementById('loadingScreen').classList.add('hidden');
+                console.error(e); 
+                showToast('連線失敗：API金鑰設定錯誤', 'error'); 
+                document.getElementById('loadingScreen').classList.add('hidden');
             }
         }
 
         function setupListeners() {
-            const settingsDoc = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'gym_settings', 'current_plan');
-            const sessionsCol = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'gym_sessions');
+            const settingsDoc = doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'gym_settings', 'current_plan');
+            const sessionsCol = collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'gym_sessions');
 
             onSnapshot(settingsDoc, (docSnap) => {
                 if (docSnap.exists()) planSettings = { ...planSettings, ...docSnap.data() };
@@ -425,7 +453,7 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
             });
         }
 
-        // ================= ACCORDION UI LOGIC (v9 核心修正) =================
+        // ================= ACCORDION UI LOGIC =================
         function renderAccordionCategories() {
             const container = document.getElementById('tagCategoriesContainer');
             let html = '';
@@ -434,7 +462,6 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
             for (const [cat, tags] of Object.entries(workoutCategories)) {
                 if(tags.length === 0 && cat === "⭐ 自訂 (Custom)") continue;
                 
-                // 第一個分類預設打開
                 const isExpanded = index === 0;
                 const chevron = isExpanded ? '▲' : '▼';
                 const displayClass = isExpanded ? 'block' : 'hidden';
@@ -447,7 +474,10 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
                     </button>
                     <div id="panel-${index}" class="${displayClass} p-4 border-t border-zinc-800/50">
                         <div class="flex flex-wrap gap-2">
-                            ${tags.map(t => `<button onclick="toggleTag('${t}')" id="btn-tag-${t}" class="tag-btn px-3 py-2 rounded-full border border-zinc-700 bg-zinc-800 text-xs font-bold text-zinc-300 active:scale-95 ${selectedTags.includes(t)?'selected':''}">${t}</button>`).join('')}
+                            ${tags.map(t => {
+                                const isSelected = currentExercises.some(e => e.name === t);
+                                return `<button onclick="addExercise('${t}')" class="tag-btn px-3 py-2 rounded-full border border-zinc-700 bg-zinc-800 text-xs font-bold text-zinc-300 active:scale-95 ${isSelected?'selected':''}">${t}</button>`;
+                            }).join('')}
                         </div>
                     </div>
                 </div>`;
@@ -459,63 +489,60 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
         function toggleAccordion(index) {
             const panel = document.getElementById(`panel-${index}`);
             const chevron = document.getElementById(`chevron-${index}`);
-            
             if (panel.classList.contains('hidden')) {
-                panel.classList.remove('hidden');
-                panel.classList.add('block', 'animate-in', 'fade-in');
-                chevron.innerText = '▲';
+                panel.classList.remove('hidden'); panel.classList.add('block', 'animate-in', 'fade-in'); chevron.innerText = '▲';
             } else {
-                panel.classList.add('hidden');
-                panel.classList.remove('block', 'animate-in', 'fade-in');
-                chevron.innerText = '▼';
+                panel.classList.add('hidden'); panel.classList.remove('block', 'animate-in', 'fade-in'); chevron.innerText = '▼';
             }
         }
 
+        // 核心：每次點擊都產生一個新實例，允許重複
+        function addExercise(tag) {
+            currentExercises.push({
+                id: Date.now().toString() + Math.random().toString().slice(2, 6),
+                name: tag,
+                isCardio: isCardio(tag),
+                kg: '', reps: '', sets: '', mins: '', kcal: ''
+            });
+            updateSelectedTagsDisplay();
+            renderExerciseInputs();
+            renderAccordionCategories(); // 刷新高亮狀態
+        }
+
+        function removeExercise(id) {
+            currentExercises = currentExercises.filter(e => e.id !== id);
+            updateSelectedTagsDisplay();
+            renderExerciseInputs();
+            renderAccordionCategories(); // 刷新高亮狀態
+        }
+
         function updateSelectedTagsDisplay() {
-            // Update Modal internal display
             const modalDisplay = document.getElementById('modalSelectedTagsDisplay');
             const emptyText = document.getElementById('modalEmptyText');
             
-            if (selectedTags.length === 0) {
+            if (currentExercises.length === 0) {
                 modalDisplay.innerHTML = '';
                 emptyText.style.display = 'block';
             } else {
                 emptyText.style.display = 'none';
-                modalDisplay.innerHTML = selectedTags.map(t => 
-                    `<div class="flex items-center gap-1 bg-lime-400 text-black px-2 py-1 rounded text-xs font-bold">
-                        ${t} <button onclick="toggleTag('${t}')" class="text-black/60 hover:text-black ml-1 text-[10px]">✖</button>
+                modalDisplay.innerHTML = currentExercises.map(e => 
+                    `<div class="flex items-center gap-1 ${e.isCardio?'bg-cyan-400':'bg-lime-400'} text-black px-2 py-1 rounded text-xs font-bold">
+                        ${e.name} <button onclick="removeExercise('${e.id}')" class="text-black/60 hover:text-black ml-1 text-[10px]">✖</button>
                     </div>`
                 ).join('');
             }
 
-            // Update Main Screen Display
             const mainDisplay = document.getElementById('mainSelectedTagsDisplay');
-            if (selectedTags.length === 0) {
-                mainDisplay.innerText = "點擊選擇動作...";
+            if (currentExercises.length === 0) {
+                mainDisplay.innerText = "點擊加入動作...";
                 mainDisplay.classList.remove('text-lime-400');
                 mainDisplay.classList.add('text-zinc-400');
             } else {
-                mainDisplay.innerText = selectedTags.join(', ');
+                const names = currentExercises.map(e => e.name);
+                mainDisplay.innerText = names.join(', ');
                 mainDisplay.classList.remove('text-zinc-400');
                 mainDisplay.classList.add('text-lime-400');
             }
-        }
-
-        function toggleTag(tag) {
-            const idx = selectedTags.indexOf(tag);
-            const btn = document.getElementById(`btn-tag-${tag}`);
-            
-            if(idx > -1) { 
-                selectedTags.splice(idx, 1); 
-                if(btn) btn.classList.remove('selected'); 
-                delete exerciseInputsData[tag]; 
-            } else { 
-                selectedTags.push(tag); 
-                if(btn) btn.classList.add('selected'); 
-                if(!exerciseInputsData[tag]) exerciseInputsData[tag] = {}; 
-            }
-            updateSelectedTagsDisplay();
-            renderExerciseInputs();
         }
 
         function addCustomTag() {
@@ -524,67 +551,65 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
             if(!val) return;
             if(!workoutCategories["⭐ 自訂 (Custom)"].includes(val)) workoutCategories["⭐ 自訂 (Custom)"].push(val);
             
-            if(!selectedTags.includes(val)) { 
-                selectedTags.push(val); 
-                exerciseInputsData[val] = {}; 
-            }
+            addExercise(val); // 加入這個新動作
             input.value = ''; 
-            renderAccordionCategories(); // Re-render to show the new custom tag
-            updateSelectedTagsDisplay();
-            renderExerciseInputs(); 
             showToast('已新增動作', 'success');
         }
 
+        // 渲染獨立的輸入框區塊
         function renderExerciseInputs() {
             const container = document.getElementById('exerciseDetailsContainer');
-            if(selectedTags.length === 0) { container.innerHTML = ''; return; }
-            container.innerHTML = selectedTags.map(tag => {
-                const d = exerciseInputsData[tag] || {};
-                const isCardioType = isCardio(tag);
-                
+            if(currentExercises.length === 0) { container.innerHTML = ''; return; }
+            
+            container.innerHTML = currentExercises.map(e => {
                 let inputHtml = '';
-                if(isCardioType) {
+                if(e.isCardio) {
                     inputHtml = `
-                        <div class="relative w-1/2">
-                            <input type="number" value="${d.mins || ''}" onchange="handleExerciseInputChange('${tag}', 'mins', this.value)" placeholder="時間" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs p-2 font-bold sport-font text-cyan-400" id="input-mins-${tag}">
-                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-zinc-500 font-bold">分</span>
+                        <div class="relative flex-1">
+                            <input type="number" value="${e.mins}" onchange="handleExerciseInputChange('${e.id}', 'mins', this.value)" placeholder="時間" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs px-1 py-2 font-bold sport-font text-cyan-400">
+                            <span class="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-zinc-500 font-bold">分</span>
                         </div>
-                        <div class="relative w-1/2">
-                            <input type="number" value="${d.kcal || ''}" onchange="handleExerciseInputChange('${tag}', 'kcal', this.value)" placeholder="消耗" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs p-2 font-bold sport-font text-orange-400" id="input-kcal-${tag}">
-                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-zinc-500 font-bold">大卡</span>
+                        <div class="relative flex-1">
+                            <input type="number" value="${e.kcal}" onchange="handleExerciseInputChange('${e.id}', 'kcal', this.value)" placeholder="消耗" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs px-1 py-2 font-bold sport-font text-orange-400">
+                            <span class="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-zinc-500 font-bold">卡</span>
                         </div>
                     `;
                 } else {
+                    // 三個欄位：重量、次數、組數
                     inputHtml = `
-                        <div class="relative w-1/2">
-                            <input type="number" value="${d.kg || ''}" onchange="handleExerciseInputChange('${tag}', 'kg', this.value)" placeholder="重量" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs p-2 font-bold sport-font" id="input-kg-${tag}">
-                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-zinc-500 font-bold">kg</span>
+                        <div class="relative flex-1">
+                            <input type="number" value="${e.kg}" onchange="handleExerciseInputChange('${e.id}', 'kg', this.value)" placeholder="重量" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs px-1 py-2 font-bold sport-font">
+                            <span class="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-zinc-500 font-bold">kg</span>
                         </div>
-                        <div class="relative w-1/2">
-                            <input type="number" value="${d.sets || ''}" onchange="handleExerciseInputChange('${tag}', 'sets', this.value)" placeholder="組數" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs p-2 font-bold sport-font" id="input-sets-${tag}">
-                            <span class="absolute right-2 top-1/2 -translate-y-1/2 text-[9px] text-zinc-500 font-bold">組</span>
+                        <div class="relative flex-1">
+                            <input type="number" value="${e.reps}" onchange="handleExerciseInputChange('${e.id}', 'reps', this.value)" placeholder="次數" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs px-1 py-2 font-bold sport-font">
+                            <span class="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-zinc-500 font-bold">次</span>
+                        </div>
+                        <div class="relative flex-1">
+                            <input type="number" value="${e.sets}" onchange="handleExerciseInputChange('${e.id}', 'sets', this.value)" placeholder="組數" class="w-full bg-zinc-900 border-zinc-600 rounded-lg text-center text-xs px-1 py-2 font-bold sport-font">
+                            <span class="absolute right-1 top-1/2 -translate-y-1/2 text-[8px] text-zinc-500 font-bold">組</span>
                         </div>
                     `;
                 }
 
                 return `
-                <div class="flex items-center justify-between gap-2 bg-zinc-800/80 p-2.5 rounded-xl border border-zinc-700 animate-in fade-in">
-                    <span class="text-xs font-bold ${isCardioType ? 'text-cyan-400' : 'text-lime-400'} w-4/12 truncate">${tag}</span>
-                    <div class="w-8/12 flex gap-2">
+                <div class="flex items-center justify-between gap-1 bg-zinc-800/80 p-2 rounded-xl border border-zinc-700 animate-in fade-in relative">
+                    <button onclick="removeExercise('${e.id}')" class="absolute -top-2 -left-2 bg-zinc-700 hover:bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] shadow-lg transition-colors">✖</button>
+                    <span class="text-[11px] font-bold ${e.isCardio ? 'text-cyan-400' : 'text-lime-400'} w-3/12 truncate ml-2">${e.name}</span>
+                    <div class="w-9/12 flex gap-1">
                         ${inputHtml}
                     </div>
                 </div>`;
             }).join('');
         }
 
-        function handleExerciseInputChange(tag, field, val) {
-            if(!exerciseInputsData[tag]) exerciseInputsData[tag] = {};
-            exerciseInputsData[tag][field] = val;
+        function handleExerciseInputChange(id, field, val) {
+            const ex = currentExercises.find(e => e.id === id);
+            if(ex) ex[field] = val;
         }
 
         function toggleTagModal(show) {
             const m = document.getElementById('tagModal');
-            // 完全移除鎖定 body 程式碼
             if(show) { 
                 m.classList.remove('hidden'); 
                 setTimeout(() => { m.classList.remove('translate-y-full'); }, 10); 
@@ -617,15 +642,12 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
             const m = parseInt(document.getElementById('inputMinutes').value) || 0;
             const totalSec = (h * 3600) + (m * 60);
 
-            const exerciseList = selectedTags.map(tag => {
-                if(isCardio(tag)) {
-                    const minsEl = document.getElementById(`input-mins-${tag}`);
-                    const kcalEl = document.getElementById(`input-kcal-${tag}`);
-                    return { name: tag, mins: minsEl ? parseInt(minsEl.value)||0 : 0, kcal: kcalEl ? parseInt(kcalEl.value)||0 : 0, type: 'cardio' };
+            // Mapping from UI state to Firebase
+            const exerciseList = currentExercises.map(e => {
+                if(e.isCardio) {
+                    return { name: e.name, mins: parseInt(e.mins)||0, kcal: parseInt(e.kcal)||0, type: 'cardio' };
                 } else {
-                    const kgEl = document.getElementById(`input-kg-${tag}`);
-                    const setsEl = document.getElementById(`input-sets-${tag}`);
-                    return { name: tag, weight: kgEl ? parseFloat(kgEl.value)||0 : 0, sets: setsEl ? parseInt(setsEl.value)||0 : 0, type: 'weight' };
+                    return { name: e.name, weight: parseFloat(e.kg)||0, reps: parseInt(e.reps)||0, sets: parseInt(e.sets)||0, type: 'weight' };
                 }
             });
 
@@ -634,7 +656,7 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
             const btn = document.getElementById('addBtn'); btn.innerText = "SAVING..."; btn.disabled = true;
 
             try {
-                await addDoc(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'gym_sessions'), {
+                await addDoc(collection(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'gym_sessions'), {
                     date, bodyWeight: bw, h, m, totalSeconds: totalSec, exercises: exerciseList,
                     gymType, dropInFee, timestamp: serverTimestamp()
                 });
@@ -643,8 +665,8 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
                 document.getElementById('inputDropInFee').value = '';
                 document.getElementById('inputGymType').value = planSettings.type === 'none' ? 'dropin' : 'sub'; toggleDropInFee();
                 
-                // Clear tags
-                selectedTags = []; exerciseInputsData = {}; 
+                // Clear state
+                currentExercises = []; 
                 renderAccordionCategories(); // refresh buttons
                 updateSelectedTagsDisplay();
                 renderExerciseInputs();
@@ -656,7 +678,7 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
 
         async function deleteSession(id) {
             if (!currentUser || !confirm("確定刪除此紀錄？")) return;
-            await deleteDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'gym_sessions', id));
+            await deleteDoc(doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'gym_sessions', id));
             showToast('紀錄已刪除', 'success');
         }
 
@@ -724,9 +746,13 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
                             if(e.kcal) details.push(`${e.kcal}卡`);
                             dStr = details.length > 0 ? ` <span class="text-cyan-400">(${details.join('/')})</span>` : '';
                         } else {
-                            dStr = (e.weight||e.sets) ? ` <span class="text-lime-400">(${e.weight?e.weight+'kg':''}${e.weight&&e.sets?'/':''}${e.sets?e.sets+'組':''})</span>` : '';
+                            let wParts = [];
+                            if(e.weight) wParts.push(e.weight+'kg');
+                            if(e.reps) wParts.push(e.reps+'次');
+                            if(e.sets) wParts.push(e.sets+'組');
+                            dStr = wParts.length > 0 ? ` <span class="text-lime-400">(${wParts.join(' x ')})</span>` : '';
                         }
-                        return `<span class="bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded text-[10px] border border-zinc-700">${e.name}${dStr}</span>`;
+                        return `<div class="bg-zinc-800 text-zinc-300 px-2 py-1 rounded-lg text-[10px] border border-zinc-700 w-full">${e.name}${dStr}</div>`;
                     }).join('');
                 } else exerciseStr = '<span class="text-[10px] text-zinc-600">一般訓練</span>';
 
@@ -735,12 +761,12 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
                 return `
                 <div class="glass-card p-3 rounded-xl flex justify-between items-start relative overflow-hidden group border-zinc-800">
                     <div class="flex-1">
-                        <div class="flex items-center mb-2">
+                        <div class="flex items-center mb-3">
                             <span class="text-[11px] font-black neon-text sport-font">${s.date.substring(5)}</span>
                             <span class="text-xs font-bold sport-font tracking-wide text-white ml-2">${s.h}h ${s.m}m</span>
                             ${dropInBadge}
                         </div>
-                        <div class="flex flex-wrap gap-1">${exerciseStr}</div>
+                        <div class="flex flex-col gap-1">${exerciseStr}</div>
                     </div>
                     <button onclick="deleteSession('${s.id}')" class="text-zinc-600 hover:text-red-500 p-2 ml-2 transition-colors">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
@@ -787,9 +813,13 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
                                 if(e.kcal) parts.push(`${e.kcal}大卡`);
                                 detailStr = `<span class="text-cyan-400 font-bold sport-font">${parts.join(' / ')}</span>`;
                             } else {
-                                detailStr = `<span class="text-lime-400 font-bold sport-font">${e.weight?e.weight+'kg':''} ${e.weight&&e.sets?'x':''} ${e.sets?e.sets+'組':''}</span>`;
+                                let wParts = [];
+                                if(e.weight) wParts.push(e.weight+'kg');
+                                if(e.reps) wParts.push(e.reps+'次');
+                                if(e.sets) wParts.push(e.sets+'組');
+                                detailStr = `<span class="text-lime-400 font-bold sport-font">${wParts.join(' x ')}</span>`;
                             }
-                            return `<div class="flex justify-between text-xs mt-1 border-t border-zinc-700/50 pt-1"><span class="text-zinc-300">${e.name}</span>${detailStr}</div>`;
+                            return `<div class="flex justify-between text-xs mt-1 border-t border-zinc-700/50 pt-2 pb-1"><span class="text-zinc-300">${e.name}</span>${detailStr}</div>`;
                         }).join('');
                     }
                     const dropInInfo = s.gymType === 'dropin' ? `<span class="text-red-400 text-[10px] ml-2 border border-red-400/50 px-1 rounded">單次 $${s.dropInFee}</span>` : '';
@@ -847,6 +877,7 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
                             const sumKcal = matched.reduce((sum, e) => sum + (e.kcal||0), 0);
                             if(sumKcal > 0) dateMap[shortD].exData = (dateMap[shortD].exData||0) + sumKcal;
                         } else {
+                            // 擷取此動作在當天的「最大重量」作為趨勢指標
                             const maxW = Math.max(...matched.map(e => e.weight||0));
                             if(maxW > 0 && (dateMap[shortD].exData === null || maxW > dateMap[shortD].exData)) dateMap[shortD].exData = maxW;
                         }
@@ -866,7 +897,7 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
             const datasets = [{ label: '體重 (kg)', data: weightData, borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', fill: true, tension: 0.3, spanGaps: true, pointBackgroundColor: '#3b82f6' }];
             
             if(targetExercise) {
-                const labelName = isCardioTarget ? `${targetExercise} (大卡)` : `${targetExercise} (kg)`;
+                const labelName = isCardioTarget ? `${targetExercise} (大卡)` : `${targetExercise} (Max kg)`;
                 const lineColor = isCardioTarget ? '#fb923c' : '#ef4444';
                 const bgColor = isCardioTarget ? 'rgba(251, 146, 60, 0.1)' : 'rgba(239, 68, 68, 0.1)';
                 
@@ -893,11 +924,11 @@ const appId = "elite-gym-v9"; // 保持你原本的內部 app ID;
         async function saveSettings() {
             if(!currentUser) return;
             planSettings.fee = parseInt(document.getElementById('setFee').value) || 0; planSettings.type = document.getElementById('setPlanType').value; planSettings.startDate = document.getElementById('setStartDate').value; planSettings.endDate = document.getElementById('setEndDate').value;
-            try { await setDoc(doc(db, 'artifacts', appId, 'users', currentUser.uid, 'gym_settings', 'current_plan'), planSettings); toggleSettings(false); showToast('設定已更新', 'success'); } catch(e) { showToast('更新失敗', 'error'); }
+            try { await setDoc(doc(db, 'artifacts', currentAppId, 'users', currentUser.uid, 'gym_settings', 'current_plan'), planSettings); toggleSettings(false); showToast('設定已更新', 'success'); } catch(e) { showToast('更新失敗', 'error'); }
         }
 
         function showToast(text, type) {
-            const box = document.getElementById('statusBox'); box.innerText = text; box.className = `fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold text-xs z-[80] shadow-2xl border ${type === 'error' ? 'bg-red-500/90 text-white border-red-400' : 'bg-lime-400 text-black border-lime-300'}`; box.classList.remove('hidden'); setTimeout(() => box.classList.add('hidden'), 2000);
+            const box = document.getElementById('statusBox'); box.innerText = text; box.className = `fixed top-20 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold text-xs z-[80] shadow-2xl border transition-all ${type === 'error' ? 'bg-red-500/90 text-white border-red-500' : 'bg-lime-400/90 text-black border-lime-400'}`; box.classList.remove('hidden'); setTimeout(() => box.classList.add('hidden'), 2000);
         }
 
         init();
